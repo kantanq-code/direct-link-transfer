@@ -90,39 +90,6 @@ type IncomingMsg =
 export function setupReceiver(
   conn: DataConnection,
   onStateChange: OnStateChange,
-  onFilesReceived: (files: File[]) => void
-): void {
-  let received: { meta: FileMeta; chunks: Map<number, Uint8Array> }[] = [];
-  let totalSize = 0;
-  let totalReceived = 0;
-
-  conn.on("data", (raw) => {
-    const msg = raw as IncomingMsg;
-    if (msg.kind === "meta") {
-      received = msg.files.map((m) => ({ meta: m, chunks: new Map() }));
-      totalSize = msg.totalSize;
-      totalReceived = 0;
-      onStateChange({
-        kind: "transferring",
-        sent: 0,
-        total: totalSize,
-        fileName: msg.files[0]?.name ?? "",
-      });
-    } else if (msg.kind === "chunk") {
-      const rf = received[msg.fileIndex];
-      if (!rf) return;
-      const bytes = new Uint8Array(msg.data);
-      rf.chunks.set(msg.offset, bytes);
-      totalReceived += bytes.length;
-      onStateChange({
-        kind: "transferring",
-        sent: totalReceived,
-        total: totalSize,
-        fileName: rf.meta.name,
-      });
-export function setupReceiver(
-  conn: DataConnection,
-  onStateChange: OnStateChange,
   onFilesReceived: (files: ReceivedFile[]) => void
 ): void {
   let received: { meta: FileMeta; chunks: Map<number, Uint8Array> }[] = [];
