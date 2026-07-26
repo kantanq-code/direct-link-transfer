@@ -26,7 +26,9 @@ export function createPeerConnection(): RTCPeerConnection {
   return new RTCPeerConnection({ iceServers: ICE_SERVERS });
 }
 
-export async function createOffer(pc: RTCPeerConnection): Promise<RTCSessionDescriptionInit> {
+export async function createOffer(
+  pc: RTCPeerConnection
+): Promise<{ offer: RTCSessionDescriptionInit; channel: RTCDataChannel }> {
   const channel = pc.createDataChannel("fileTransfer", {
     ordered: true,
   });
@@ -40,7 +42,7 @@ export async function createOffer(pc: RTCPeerConnection): Promise<RTCSessionDesc
   if (!completeOffer) {
     throw new Error("Failed to create offer");
   }
-  return completeOffer;
+  return { offer: completeOffer, channel };
 }
 
 export async function createAnswer(
