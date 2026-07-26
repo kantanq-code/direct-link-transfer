@@ -41,7 +41,12 @@ export function sendFiles(
   files: File[],
   onStateChange: OnStateChange
 ): void {
-  const metas: FileMeta[] = files.map((f) => ({ name: f.name, size: f.size, type: f.type }));
+  const metas: FileMeta[] = files.map((f) => ({
+    name: f.name,
+    size: f.size,
+    type: f.type,
+    path: getFilePath(f),
+  }));
   const totalSize = files.reduce((s, f) => s + f.size, 0);
 
   conn.send({ kind: "meta", files: metas, totalSize });
