@@ -26,7 +26,9 @@ export function createPeerConnection(): RTCPeerConnection {
   return new RTCPeerConnection({ iceServers: ICE_SERVERS });
 }
 
-export async function createOffer(pc: RTCPeerConnection): Promise<RTCSessionDescriptionInit> {
+export async function createOffer(
+  pc: RTCPeerConnection
+): Promise<{ offer: RTCSessionDescriptionInit; channel: RTCDataChannel }> {
   const channel = pc.createDataChannel("fileTransfer", {
     ordered: true,
   });
@@ -40,7 +42,7 @@ export async function createOffer(pc: RTCPeerConnection): Promise<RTCSessionDesc
   if (!completeOffer) {
     throw new Error("Failed to create offer");
   }
-  return completeOffer;
+  return { offer: completeOffer, channel };
 }
 
 export async function createAnswer(
@@ -249,15 +251,14 @@ export function setupReceiver(
   });
 }
 
-export function setupSenderChannel(
-  pc: RTCPeerConnection,
-  onStateChange: OnStateChange
-): Promise<RTCDataChannel> {
-  return new Promise((resolve) => {
-    pc.addEventListener("datachannel", (event) => {
-      onStateChange({ kind: "connecting" });
-      resolve(event.channel);
-    });
+export function waitForChannelOpen(channel: RTCDataChannel): Promise<RTCDataChannel> {
+  return new Promise((resolve, reject) => {
+    if (channel.readyState === "open") {
+      resolve(channel);
+      return;
+    }
+    channel.addEventListener("open", () => resolve(channel), { once: true });
+    channel.addEventListener("error", (e) => reject(e), { once: true });
   });
 }
 
