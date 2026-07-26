@@ -65,9 +65,17 @@ export function ReceiveFlow({ onBack }: ReceiveFlowProps) {
     peer.on("open", () => {
       const conn = peer.connect(PEER_PREFIX + code, { reliable: true });
 
-      conn.on("open", () => {
+      let started = false;
+      const start = () => {
+        if (started) return;
+        started = true;
         setupReceiver(conn, setState, (files) => setReceivedFiles(files));
-      });
+      };
+      if (conn.open) {
+        start();
+      } else {
+        conn.on("open", start);
+      }
 
       conn.on("error", () => {
         setState({

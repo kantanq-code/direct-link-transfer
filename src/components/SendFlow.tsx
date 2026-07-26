@@ -72,9 +72,19 @@ export function SendFlow({ onBack }: SendFlowProps) {
 
     peer.on("connection", (conn: DataConnection) => {
       setState({ kind: "connecting" });
-      conn.on("open", () => {
+      let started = false;
+      const start = () => {
+        if (started) return;
+        started = true;
         sendFiles(conn, filesRef.current, setState);
-      });
+      };
+      // PeerJS may fire "connection" after the channel is already open,
+      // in which case the "open" event never fires again.
+      if (conn.open) {
+        start();
+      } else {
+        conn.on("open", start);
+      }
       conn.on("error", () => {
         setState({ kind: "error", message: "Connection error during transfer" });
       });
