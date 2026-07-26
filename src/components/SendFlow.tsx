@@ -4,9 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Copy, Send, Upload } from "lucide-react";
+import { ArrowLeft, Copy, FolderUp, Send, Upload } from "lucide-react";
 import {
   generateCode,
+  getFilePath,
   PEER_PREFIX,
   sendFiles,
   type TransferState,
