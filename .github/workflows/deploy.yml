@@ -32,6 +32,9 @@ jobs:
       - name: Build static site
         run: bunx vite build --config vite.github-pages.config.ts
 
+      - name: Copy index.html to 404.html for SPA fallback
+        run: cp dist/client/index.html dist/client/404.html
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
