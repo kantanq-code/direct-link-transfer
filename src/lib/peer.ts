@@ -16,12 +16,12 @@ const CHUNK_SIZE = 16 * 1024;
 export const PEER_PREFIX = "directdrop-";
 
 // 6 chars, no confusable characters (no 0/O/1/I/L)
-const ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789";
+export const CODE_ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789";
 export function generateCode(len = 6): string {
   const bytes = new Uint8Array(len);
   crypto.getRandomValues(bytes);
   let out = "";
-  for (let i = 0; i < len; i++) out += ALPHABET[bytes[i] % ALPHABET.length];
+  for (let i = 0; i < len; i++) out += CODE_ALPHABET[bytes[i] % CODE_ALPHABET.length];
   return out;
 }
 

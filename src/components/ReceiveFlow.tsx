@@ -2,10 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import type Peer from "peerjs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, Download, Radio } from "lucide-react";
 import {
+  CODE_ALPHABET,
   downloadFile,
   normalizeCode,
   PEER_PREFIX,
@@ -13,6 +13,14 @@ import {
   type TransferState,
 } from "@/lib/peer";
 import { TransferProgress } from "./TransferProgress";
+
+const CODE_LENGTH = 6;
+const KEYPAD_ROWS = [
+  Array.from(CODE_ALPHABET.slice(0, 8)),
+  Array.from(CODE_ALPHABET.slice(8, 16)),
+  Array.from(CODE_ALPHABET.slice(16, 24)),
+  Array.from(CODE_ALPHABET.slice(24)),
+];
 
 interface ReceiveFlowProps {
   onBack: () => void;
@@ -25,6 +33,8 @@ export function ReceiveFlow({ onBack }: ReceiveFlowProps) {
   const [receivedFiles, setReceivedFiles] = useState<File[]>([]);
   const peerRef = useRef<Peer | null>(null);
 
+  const normalizedCode = normalizeCode(codeInput).slice(0, CODE_LENGTH);
+
   useEffect(() => {
     return () => {
       peerRef.current?.destroy();
@@ -33,7 +43,7 @@ export function ReceiveFlow({ onBack }: ReceiveFlowProps) {
 
 
   async function connect() {
-    const code = normalizeCode(codeInput);
+    const code = normalizedCode;
     if (code.length < 4) {
       setState({ kind: "error", message: "Please enter a valid code." });
       return;
@@ -44,6 +54,7 @@ export function ReceiveFlow({ onBack }: ReceiveFlowProps) {
 
     const { default: PeerCtor } = await import("peerjs");
     const peer = new PeerCtor();
+    peerRef.current = peer;
 
     peer.on("open", () => {
       const conn = peer.connect(PEER_PREFIX + code, { reliable: true });
@@ -73,6 +84,46 @@ export function ReceiveFlow({ onBack }: ReceiveFlowProps) {
     });
   }
 
+  function addCodeChar(char: string) {
+    setCodeInput((current) => {
+      const next = normalizeCode(current + char).slice(0, CODE_LENGTH);
+      setState({ kind: "idle" });
+      return next;
+    });
+  }
+
+  function removeCodeChar() {
+    setCodeInput((current) => normalizeCode(current).slice(0, -1));
+    setState({ kind: "idle" });
+  }
+
+  useEffect(() => {
+    if (connected) return;
+
+    function handleKeyDown(event: KeyboardEvent) {
+      const key = event.key.toLowerCase();
+
+      if (key === "enter") {
+        connect();
+        return;
+      }
+
+      if (key === "backspace" || key === "delete") {
+        event.preventDefault();
+        removeCodeChar();
+        return;
+      }
+
+      if (CODE_ALPHABET.includes(key)) {
+        event.preventDefault();
+        addCodeChar(key);
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [connected, normalizedCode]);
+
   function reset() {
     peerRef.current?.destroy();
     peerRef.current = null;
@@ -98,26 +149,51 @@ export function ReceiveFlow({ onBack }: ReceiveFlowProps) {
       <CardContent className="space-y-6">
         {!connected && (
           <>
-            <div className="space-y-2">
-              <Label htmlFor="code-input">Enter share code</Label>
-              <Input
-                id="code-input"
-                value={codeInput}
-                onChange={(e) => setCodeInput(e.target.value)}
-                placeholder="e.g. abc234"
-                autoComplete="off"
-                autoCapitalize="none"
-                spellCheck={false}
-                maxLength={10}
-                className="text-center text-2xl font-mono tracking-widest uppercase"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") connect();
-                }}
-              />
+            <div className="space-y-3">
+              <Label>Enter share code</Label>
+              <div className="grid grid-cols-6 gap-2" aria-label="Share code">
+                {Array.from({ length: CODE_LENGTH }).map((_, index) => (
+                  <div
+                    key={index}
+                    className="flex aspect-square items-center justify-center rounded-md border border-input bg-background font-mono text-xl font-semibold uppercase text-foreground shadow-sm"
+                  >
+                    {normalizedCode[index] ?? ""}
+                  </div>
+                ))}
+              </div>
+              <div className="space-y-2" aria-label="Code keypad">
+                {KEYPAD_ROWS.map((row, rowIndex) => (
+                  <div key={rowIndex} className="grid grid-cols-8 gap-1.5">
+                    {row.map((char) => (
+                      <Button
+                        key={char}
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => addCodeChar(char)}
+                        disabled={normalizedCode.length >= CODE_LENGTH}
+                        className="h-10 px-0 font-mono text-base uppercase"
+                      >
+                        {char}
+                      </Button>
+                    ))}
+                  </div>
+                ))}
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={removeCodeChar}
+                disabled={normalizedCode.length === 0}
+                className="w-full"
+              >
+                Delete last character
+              </Button>
             </div>
-            <Button onClick={connect} disabled={!codeInput.trim()} className="w-full">
+            <Button onClick={connect} disabled={!normalizedCode} className="w-full">
               Connect
             </Button>
+            {state.kind === "error" && <p className="text-sm text-destructive">{state.message}</p>}
           </>
         )}
 
