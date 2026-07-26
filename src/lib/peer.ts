@@ -22,40 +22,14 @@ export type OnStateChange = (state: TransferState) => void;
 const CHUNK_SIZE = 16 * 1024;
 export const PEER_PREFIX = "directdrop-";
 
+export const PEER_OPTIONS = {
+  debug: 0,
+};
+
 const RECEIVER_READY_MESSAGE = "directdrop:receiver-ready";
 type DataConnectionRuntime = DataConnection & {
   _open?: boolean;
   dataChannel?: RTCDataChannel;
-};
-
-const TURN_USERNAME = "openrelayproject";
-const TURN_CREDENTIAL = "openrelayproject";
-
-export const PEER_OPTIONS = {
-  debug: 0,
-  config: {
-    iceServers: [
-      { urls: "stun:stun.l.google.com:19302" },
-      { urls: "stun:global.stun.twilio.com:3478" },
-      { urls: "stun:openrelay.metered.ca:80" },
-      {
-        urls: "turn:openrelay.metered.ca:80",
-        username: TURN_USERNAME,
-        credential: TURN_CREDENTIAL,
-      },
-      {
-        urls: "turn:openrelay.metered.ca:443",
-        username: TURN_USERNAME,
-        credential: TURN_CREDENTIAL,
-      },
-      {
-        urls: "turn:openrelay.metered.ca:443?transport=tcp",
-        username: TURN_USERNAME,
-        credential: TURN_CREDENTIAL,
-      },
-    ],
-    sdpSemantics: "unified-plan",
-  },
 };
 
 // 6 chars, no confusable characters (no 0/O/1/I/L)
