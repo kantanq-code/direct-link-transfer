@@ -76,23 +76,23 @@ export function SendFlow({ onBack }: SendFlowProps) {
     peer.on("connection", (conn: DataConnection) => {
       setState({ kind: "connecting" });
       let started = false;
-      const waitForReceiverReady = new Promise<void>((resolve, reject) => {
-        const timeout = setTimeout(
-          () => reject(new Error("Receiver did not become ready. Try both devices again.")),
-          25000
-        );
-        conn.on("data", (data) => {
-          if (!isReceiverReady(data)) return;
-          clearTimeout(timeout);
-          resolve();
-        });
-      });
 
       const start = async () => {
         if (started) return;
         started = true;
         try {
           await waitForDataConnectionOpen(conn);
+          const waitForReceiverReady = new Promise<void>((resolve, reject) => {
+            const timeout = setTimeout(
+              () => reject(new Error("Receiver did not become ready. Try both devices again.")),
+              25000
+            );
+            conn.on("data", (data) => {
+              if (!isReceiverReady(data)) return;
+              clearTimeout(timeout);
+              resolve();
+            });
+          });
           await waitForReceiverReady;
           sendFiles(conn, filesRef.current, setState);
         } catch (error) {
