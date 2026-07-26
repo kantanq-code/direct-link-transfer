@@ -251,15 +251,14 @@ export function setupReceiver(
   });
 }
 
-export function setupSenderChannel(
-  pc: RTCPeerConnection,
-  onStateChange: OnStateChange
-): Promise<RTCDataChannel> {
-  return new Promise((resolve) => {
-    pc.addEventListener("datachannel", (event) => {
-      onStateChange({ kind: "connecting" });
-      resolve(event.channel);
-    });
+export function waitForChannelOpen(channel: RTCDataChannel): Promise<RTCDataChannel> {
+  return new Promise((resolve, reject) => {
+    if (channel.readyState === "open") {
+      resolve(channel);
+      return;
+    }
+    channel.addEventListener("open", () => resolve(channel), { once: true });
+    channel.addEventListener("error", (e) => reject(e), { once: true });
   });
 }
 
