@@ -24,6 +24,34 @@ export const PEER_PREFIX = "directdrop-";
 
 export const PEER_OPTIONS = {
   debug: 0,
+  config: {
+    iceServers: [
+      { urls: "stun:stun.l.google.com:19302" },
+      { urls: "stun:global.stun.twilio.com:3478" },
+      {
+        urls: ["turn:eu-0.turn.peerjs.com:3478", "turn:us-0.turn.peerjs.com:3478"],
+        username: "peerjs",
+        credential: "peerjsp",
+      },
+      {
+        urls: "turn:openrelay.metered.ca:80",
+        username: "openrelayproject",
+        credential: "openrelayproject",
+      },
+      {
+        urls: "turn:openrelay.metered.ca:443",
+        username: "openrelayproject",
+        credential: "openrelayproject",
+      },
+      {
+        urls: "turn:openrelay.metered.ca:443?transport=tcp",
+        username: "openrelayproject",
+        credential: "openrelayproject",
+      },
+    ],
+    iceCandidatePoolSize: 4,
+    sdpSemantics: "unified-plan",
+  },
 };
 
 const RECEIVER_READY_MESSAGE = "directdrop:receiver-ready";
@@ -160,7 +188,7 @@ export function waitForDataConnectionOpen(conn: DataConnection, timeoutMs = 4500
 
     pollId = setInterval(markReadyIfOpen, 100);
     timeoutId = setTimeout(
-      () => rejectOnce("Connection timed out. Keep both browsers open and try again; some networks need the relay fallback."),
+      () => rejectOnce("Connection timed out. Keep both browsers open. If this repeats, the network is blocking WebRTC and needs a relay-capable connection."),
       timeoutMs
     );
   });

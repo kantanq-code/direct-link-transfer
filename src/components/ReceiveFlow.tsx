@@ -66,7 +66,7 @@ export function ReceiveFlow({ onBack }: ReceiveFlowProps) {
     peerRef.current = peer;
 
     peer.on("open", () => {
-      const conn = peer.connect(PEER_PREFIX + code, { reliable: true });
+      const conn = peer.connect(PEER_PREFIX + code);
 
       let started = false;
       const start = async () => {
