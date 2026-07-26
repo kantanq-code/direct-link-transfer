@@ -51,14 +51,15 @@ export function SendFlow({ onBack }: SendFlowProps) {
     });
 
     try {
-      const offer = await createOffer(pc);
+      const { offer, channel } = await createOffer(pc);
       const compressed = await compressString(JSON.stringify(offer));
       setOfferData(compressed);
       setState({ kind: "signaling", message: "Show this QR code to the receiver, then scan their answer." });
 
-      const channel = await setupSenderChannel(pc, setState);
-      channel.addEventListener("open", () => {
+      waitForChannelOpen(channel).then(() => {
         sendFiles(channel, files, setState);
+      }).catch(() => {
+        setState({ kind: "error", message: "Data channel failed to open." });
       });
     } catch (err) {
       setState({ kind: "error", message: err instanceof Error ? err.message : "Failed to create offer" });
