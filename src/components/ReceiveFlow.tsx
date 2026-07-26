@@ -3,13 +3,16 @@ import type Peer from "peerjs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Download, Radio } from "lucide-react";
+import { ArrowLeft, Download, FolderDown, Radio } from "lucide-react";
 import {
   CODE_ALPHABET,
   downloadFile,
   normalizeCode,
   PEER_PREFIX,
+  saveAllToDirectory,
   setupReceiver,
+  supportsDirectorySave,
+  type ReceivedFile,
   type TransferState,
 } from "@/lib/peer";
 import { TransferProgress } from "./TransferProgress";
