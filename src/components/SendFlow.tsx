@@ -120,10 +120,31 @@ export function SendFlow({ onBack }: SendFlowProps) {
                 onChange={handleFileSelect}
                 className="cursor-pointer"
               />
+              <input
+                ref={folderInputRef}
+                type="file"
+                onChange={handleFileSelect}
+                className="hidden"
+                // @ts-expect-error non-standard directory picker attrs
+                webkitdirectory=""
+                directory=""
+                multiple
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={pickFolder}
+                className="w-full gap-2"
+              >
+                <FolderUp className="h-4 w-4" />
+                Or choose a folder
+              </Button>
               {files.length > 0 && (
-                <ul className="text-sm text-muted-foreground">
-                  {files.map((f) => (
-                    <li key={f.name}>{f.name}</li>
+                <ul className="max-h-40 overflow-auto text-sm text-muted-foreground">
+                  {files.map((f, i) => (
+                    <li key={`${getFilePath(f)}-${i}`} className="truncate" title={getFilePath(f)}>
+                      {getFilePath(f)}
+                    </li>
                   ))}
                 </ul>
               )}
