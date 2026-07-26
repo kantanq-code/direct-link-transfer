@@ -1,20 +1,16 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import Peer, { type DataConnection } from "peerjs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Send, Upload } from "lucide-react";
+import { ArrowLeft, Copy, Send, Upload } from "lucide-react";
 import {
-  createOffer,
-  acceptAnswer,
-  createPeerConnection,
+  generateCode,
+  PEER_PREFIX,
   sendFiles,
-  waitForChannelOpen,
   type TransferState,
-} from "@/lib/webrtc";
-import { compressString, decompressString } from "@/lib/compress";
-import { QRCodeDisplay } from "./QRCodeDisplay";
-import { QRScanner } from "./QRScanner";
+} from "@/lib/peer";
 import { TransferProgress } from "./TransferProgress";
 
 interface SendFlowProps {
@@ -23,60 +19,71 @@ interface SendFlowProps {
 
 export function SendFlow({ onBack }: SendFlowProps) {
   const [files, setFiles] = useState<File[]>([]);
-  const [offerData, setOfferData] = useState<string | null>(null);
-  const [answerData, setAnswerData] = useState<string | null>(null);
+  const [code, setCode] = useState<string | null>(null);
   const [state, setState] = useState<TransferState>({ kind: "idle" });
-  const pcRef = useRef<RTCPeerConnection | null>(null);
+  const [copied, setCopied] = useState(false);
+  const peerRef = useRef<Peer | null>(null);
+  const filesRef = useRef<File[]>([]);
 
-  async function handleFileSelect(event: React.ChangeEvent<HTMLInputElement>) {
+  useEffect(() => {
+    filesRef.current = files;
+  }, [files]);
+
+  useEffect(() => {
+    return () => {
+      peerRef.current?.destroy();
+    };
+  }, []);
+
+  function handleFileSelect(event: React.ChangeEvent<HTMLInputElement>) {
     const selected = event.target.files;
     if (!selected || selected.length === 0) return;
     setFiles(Array.from(selected));
   }
 
-  async function generateOffer() {
+  function startHosting() {
     if (files.length === 0) return;
+    const newCode = generateCode();
+    const peer = new Peer(PEER_PREFIX + newCode);
+    peerRef.current = peer;
 
-    setState({ kind: "signaling", message: "Generating connection offer..." });
-
-    const pc = createPeerConnection();
-    pcRef.current = pc;
-
-    pc.addEventListener("connectionstatechange", () => {
-      if (pc.connectionState === "connected") {
-        setState({ kind: "connecting" });
-      } else if (pc.connectionState === "failed") {
-        setState({ kind: "error", message: "Peer-to-peer connection failed. Try again on the same network." });
-      }
+    peer.on("open", () => {
+      setCode(newCode);
+      setState({ kind: "waiting", code: newCode });
     });
 
-    try {
-      const { offer, channel } = await createOffer(pc);
-      const compressed = await compressString(JSON.stringify(offer));
-      setOfferData(compressed);
-      setState({ kind: "signaling", message: "Show this QR code to the receiver, then scan their answer." });
+    peer.on("error", (err) => {
+      // If ID is taken (unlikely), retry with a new code
+      if ((err as { type?: string }).type === "unavailable-id") {
+        peer.destroy();
+        startHosting();
+        return;
+      }
+      setState({ kind: "error", message: err.message || "Connection service error" });
+    });
 
-      waitForChannelOpen(channel).then(() => {
-        sendFiles(channel, files, setState);
-      }).catch(() => {
-        setState({ kind: "error", message: "Data channel failed to open." });
+    peer.on("connection", (conn: DataConnection) => {
+      setState({ kind: "connecting" });
+      conn.on("open", () => {
+        sendFiles(conn, filesRef.current, setState);
       });
-    } catch (err) {
-      setState({ kind: "error", message: err instanceof Error ? err.message : "Failed to create offer" });
-    }
+      conn.on("error", () => {
+        setState({ kind: "error", message: "Connection error during transfer" });
+      });
+      conn.on("close", () => {
+        // Transfer likely done; ignore.
+      });
+    });
   }
 
-  async function handleAnswerScan(data: string) {
-    if (!pcRef.current || answerData) return;
-
+  async function copyCode() {
+    if (!code) return;
     try {
-      const decompressed = await decompressString(data);
-      const answer = JSON.parse(decompressed) as RTCSessionDescriptionInit;
-      await acceptAnswer(pcRef.current, answer);
-      setAnswerData(data);
-      setState({ kind: "connecting" });
-    } catch (err) {
-      setState({ kind: "error", message: "Invalid answer QR code. Please try again." });
+      await navigator.clipboard.writeText(code);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // ignore
     }
   }
 
@@ -94,7 +101,7 @@ export function SendFlow({ onBack }: SendFlowProps) {
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
-        {!offerData && (
+        {!code && (
           <>
             <div className="space-y-2">
               <Label htmlFor="file-input">Choose files</Label>
@@ -114,27 +121,35 @@ export function SendFlow({ onBack }: SendFlowProps) {
               )}
             </div>
             <Button
-              onClick={generateOffer}
+              onClick={startHosting}
               disabled={files.length === 0}
               className="w-full gap-2"
             >
               <Upload className="h-4 w-4" />
-              Generate QR code
+              Get share code
             </Button>
           </>
         )}
 
-        {offerData && !answerData && (
-          <div className="space-y-6">
-            <QRCodeDisplay data={offerData} label="Show this code to the receiver" />
-            <div className="space-y-2">
-              <p className="text-center text-sm font-medium">Now scan the receiver&apos;s answer code</p>
-              <QRScanner onScan={handleAnswerScan} label="Point camera at receiver&apos;s answer QR" />
+        {code && state.kind === "waiting" && (
+          <div className="space-y-4 text-center">
+            <p className="text-sm text-muted-foreground">
+              Share this code with the receiver:
+            </p>
+            <div className="rounded-xl border border-border bg-muted/50 p-6">
+              <p className="text-4xl font-mono font-bold tracking-widest text-foreground select-all">
+                {code}
+              </p>
             </div>
+            <Button variant="outline" size="sm" onClick={copyCode} className="gap-2">
+              <Copy className="h-4 w-4" />
+              {copied ? "Copied!" : "Copy code"}
+            </Button>
+            <p className="text-xs text-muted-foreground">Waiting for receiver to connect…</p>
           </div>
         )}
 
-        {answerData && <TransferProgress state={state} />}
+        {code && state.kind !== "waiting" && <TransferProgress state={state} />}
       </CardContent>
     </Card>
   );
