@@ -36,10 +36,16 @@ export function SendFlow({ onBack }: SendFlowProps) {
     };
   }, []);
 
+  const folderInputRef = useRef<HTMLInputElement | null>(null);
+
   function handleFileSelect(event: React.ChangeEvent<HTMLInputElement>) {
     const selected = event.target.files;
     if (!selected || selected.length === 0) return;
     setFiles(Array.from(selected));
+  }
+
+  function pickFolder() {
+    folderInputRef.current?.click();
   }
 
   async function startHosting() {
