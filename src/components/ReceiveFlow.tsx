@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import Peer from "peerjs";
+import type Peer from "peerjs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -41,8 +41,18 @@ export function ReceiveFlow({ onBack }: ReceiveFlowProps) {
     setConnected(true);
     setState({ kind: "connecting" });
 
-    const peer = new Peer();
-    peerRef.current = peer;
+  async function connect() {
+    const code = normalizeCode(codeInput);
+    if (code.length < 4) {
+      setState({ kind: "error", message: "Please enter a valid code." });
+      return;
+    }
+
+    setConnected(true);
+    setState({ kind: "connecting" });
+
+    const { default: PeerCtor } = await import("peerjs");
+    const peer = new PeerCtor();
 
     peer.on("open", () => {
       const conn = peer.connect(PEER_PREFIX + code, { reliable: true });
