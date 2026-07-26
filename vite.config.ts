@@ -16,16 +16,6 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
-  // Build a fully static site for GitHub Pages; otherwise keep the default
-  // cloudflare-module preset so Lovable's own deploy path keeps working.
-  nitro: isGitHubPages
-    ? {
-        preset: "static",
-        prerender: {
-          routes: ["/"],
-        },
-      }
-    : undefined,
   vite: {
     base,
   },
