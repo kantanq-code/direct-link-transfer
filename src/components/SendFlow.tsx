@@ -9,7 +9,7 @@ import {
   acceptAnswer,
   createPeerConnection,
   sendFiles,
-  setupSenderChannel,
+  waitForChannelOpen,
   type TransferState,
 } from "@/lib/webrtc";
 import { compressString, decompressString } from "@/lib/compress";
