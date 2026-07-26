@@ -23,10 +23,6 @@ const CHUNK_SIZE = 16 * 1024;
 export const PEER_PREFIX = "directdrop-";
 export const PEER_OPTIONS = {
   debug: 0,
-  config: {
-    iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
-    sdpSemantics: "unified-plan",
-  },
 };
 
 const RECEIVER_READY_MESSAGE = "directdrop:receiver-ready";
@@ -114,7 +110,7 @@ export function isReceiverReady(data: unknown): boolean {
   );
 }
 
-export function waitForDataConnectionOpen(conn: DataConnection, timeoutMs = 25000): Promise<void> {
+export function waitForDataConnectionOpen(conn: DataConnection, timeoutMs = 45000): Promise<void> {
   return new Promise((resolve, reject) => {
     let settled = false;
     let pollId: ReturnType<typeof setInterval> | undefined;
@@ -163,7 +159,7 @@ export function waitForDataConnectionOpen(conn: DataConnection, timeoutMs = 2500
 
     pollId = setInterval(markReadyIfOpen, 100);
     timeoutId = setTimeout(
-      () => rejectOnce("Peer-to-peer connection timed out. Try again with both browsers open."),
+      () => rejectOnce("Connection timed out. Keep both browsers open and try again; some networks need the relay fallback."),
       timeoutMs
     );
   });
