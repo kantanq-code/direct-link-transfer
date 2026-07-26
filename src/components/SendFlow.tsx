@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import Peer, { type DataConnection } from "peerjs";
+import type { default as Peer, DataConnection } from "peerjs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
