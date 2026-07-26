@@ -8,9 +8,12 @@ import { ArrowLeft, Copy, FolderUp, Send, Upload } from "lucide-react";
 import {
   generateCode,
   getFilePath,
+  isReceiverReady,
+  PEER_OPTIONS,
   PEER_PREFIX,
   sendFiles,
   type TransferState,
+  waitForDataConnectionOpen,
 } from "@/lib/peer";
 import { TransferProgress } from "./TransferProgress";
 
@@ -52,7 +55,7 @@ export function SendFlow({ onBack }: SendFlowProps) {
     if (files.length === 0) return;
     const newCode = generateCode();
     const { default: PeerCtor } = await import("peerjs");
-    const peer = new PeerCtor(PEER_PREFIX + newCode);
+    const peer = new PeerCtor(PEER_PREFIX + newCode, PEER_OPTIONS);
     peerRef.current = peer;
 
     peer.on("open", () => {
@@ -73,18 +76,33 @@ export function SendFlow({ onBack }: SendFlowProps) {
     peer.on("connection", (conn: DataConnection) => {
       setState({ kind: "connecting" });
       let started = false;
-      const start = () => {
+
+      const start = async () => {
         if (started) return;
         started = true;
-        sendFiles(conn, filesRef.current, setState);
+        try {
+          await waitForDataConnectionOpen(conn);
+          const waitForReceiverReady = new Promise<void>((resolve, reject) => {
+            const timeout = setTimeout(
+              () => reject(new Error("Receiver did not become ready. Try both devices again.")),
+              25000
+            );
+            conn.on("data", (data) => {
+              if (!isReceiverReady(data)) return;
+              clearTimeout(timeout);
+              resolve();
+            });
+          });
+          await waitForReceiverReady;
+          sendFiles(conn, filesRef.current, setState);
+        } catch (error) {
+          setState({
+            kind: "error",
+            message: error instanceof Error ? error.message : "Connection error during transfer",
+          });
+        }
       };
-      // PeerJS may fire "connection" after the channel is already open,
-      // in which case the "open" event never fires again.
-      if (conn.open) {
-        start();
-      } else {
-        conn.on("open", start);
-      }
+      start();
       conn.on("error", () => {
         setState({ kind: "error", message: "Connection error during transfer" });
       });

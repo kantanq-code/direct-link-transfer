@@ -8,12 +8,15 @@ import {
   CODE_ALPHABET,
   downloadFile,
   normalizeCode,
+  PEER_OPTIONS,
   PEER_PREFIX,
   saveAllToDirectory,
+  sendReceiverReady,
   setupReceiver,
   supportsDirectorySave,
   type ReceivedFile,
   type TransferState,
+  waitForDataConnectionOpen,
 } from "@/lib/peer";
 import { TransferProgress } from "./TransferProgress";
 
@@ -59,23 +62,28 @@ export function ReceiveFlow({ onBack }: ReceiveFlowProps) {
     setState({ kind: "connecting" });
 
     const { default: PeerCtor } = await import("peerjs");
-    const peer = new PeerCtor();
+    const peer = new PeerCtor(PEER_OPTIONS);
     peerRef.current = peer;
 
     peer.on("open", () => {
       const conn = peer.connect(PEER_PREFIX + code, { reliable: true });
 
       let started = false;
-      const start = () => {
+      const start = async () => {
         if (started) return;
         started = true;
-        setupReceiver(conn, setState, (files) => setReceivedFiles(files));
+        try {
+          await waitForDataConnectionOpen(conn);
+          setupReceiver(conn, setState, (files) => setReceivedFiles(files));
+          sendReceiverReady(conn);
+        } catch (error) {
+          setState({
+            kind: "error",
+            message: error instanceof Error ? error.message : "Could not connect. Check the code and try again.",
+          });
+        }
       };
-      if (conn.open) {
-        start();
-      } else {
-        conn.on("open", start);
-      }
+      start();
 
       conn.on("error", () => {
         setState({
