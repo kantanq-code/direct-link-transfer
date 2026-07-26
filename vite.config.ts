@@ -7,7 +7,8 @@
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
 // GitHub Pages project sites are served under the repository path.
-const base = process.env.GITHUB_PAGES === "true" ? "/direct-link-transfer/" : "/";
+const isGitHubPages = process.env.GITHUB_PAGES === "true";
+const base = isGitHubPages ? "/direct-link-transfer/" : "/";
 
 export default defineConfig({
   tanstackStart: {
@@ -15,6 +16,9 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  // Build a fully static site for GitHub Pages; otherwise keep the default
+  // cloudflare-module preset so Lovable's own deploy path keeps working.
+  nitro: isGitHubPages ? { preset: "static" } : undefined,
   vite: {
     base,
   },
