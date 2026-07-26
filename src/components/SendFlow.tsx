@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import Peer, { type DataConnection } from "peerjs";
+import type { default as Peer, DataConnection } from "peerjs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -41,10 +41,11 @@ export function SendFlow({ onBack }: SendFlowProps) {
     setFiles(Array.from(selected));
   }
 
-  function startHosting() {
+  async function startHosting() {
     if (files.length === 0) return;
     const newCode = generateCode();
-    const peer = new Peer(PEER_PREFIX + newCode);
+    const { default: PeerCtor } = await import("peerjs");
+    const peer = new PeerCtor(PEER_PREFIX + newCode);
     peerRef.current = peer;
 
     peer.on("open", () => {
