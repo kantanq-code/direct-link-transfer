@@ -33,7 +33,10 @@ export function ReceiveFlow({ onBack }: ReceiveFlowProps) {
   const [codeInput, setCodeInput] = useState("");
   const [connected, setConnected] = useState(false);
   const [state, setState] = useState<TransferState>({ kind: "idle" });
-  const [receivedFiles, setReceivedFiles] = useState<File[]>([]);
+  const [receivedFiles, setReceivedFiles] = useState<ReceivedFile[]>([]);
+  const [savingAll, setSavingAll] = useState(false);
+  const canSaveFolder = supportsDirectorySave();
+  const hasFolder = receivedFiles.some((rf) => rf.path.includes("/"));
   const peerRef = useRef<Peer | null>(null);
 
   const normalizedCode = normalizeCode(codeInput).slice(0, CODE_LENGTH);
