@@ -1,17 +1,17 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import Peer from "peerjs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { ArrowLeft, Download, Radio } from "lucide-react";
 import {
-  createAnswer,
-  createPeerConnection,
-  setupReceiver,
   downloadFile,
+  normalizeCode,
+  PEER_PREFIX,
+  setupReceiver,
   type TransferState,
-} from "@/lib/webrtc";
-import { compressString, decompressString } from "@/lib/compress";
-import { QRCodeDisplay } from "./QRCodeDisplay";
-import { QRScanner } from "./QRScanner";
+} from "@/lib/peer";
 import { TransferProgress } from "./TransferProgress";
 
 interface ReceiveFlowProps {
@@ -19,43 +19,66 @@ interface ReceiveFlowProps {
 }
 
 export function ReceiveFlow({ onBack }: ReceiveFlowProps) {
-  const [offerData, setOfferData] = useState<string | null>(null);
-  const [answerData, setAnswerData] = useState<string | null>(null);
+  const [codeInput, setCodeInput] = useState("");
+  const [connected, setConnected] = useState(false);
   const [state, setState] = useState<TransferState>({ kind: "idle" });
   const [receivedFiles, setReceivedFiles] = useState<File[]>([]);
-  const pcRef = useRef<RTCPeerConnection | null>(null);
+  const peerRef = useRef<Peer | null>(null);
 
-  async function handleOfferScan(data: string) {
-    if (pcRef.current) return;
+  useEffect(() => {
+    return () => {
+      peerRef.current?.destroy();
+    };
+  }, []);
 
-    setState({ kind: "signaling", message: "Creating connection answer..." });
-
-    try {
-      const decompressed = await decompressString(data);
-      const offer = JSON.parse(decompressed) as RTCSessionDescriptionInit;
-      const pc = createPeerConnection();
-      pcRef.current = pc;
-
-      pc.addEventListener("connectionstatechange", () => {
-        if (pc.connectionState === "connected") {
-          setState({ kind: "connecting" });
-        } else if (pc.connectionState === "failed") {
-          setState({ kind: "error", message: "Peer-to-peer connection failed. Try again on the same network." });
-        }
-      });
-
-      setupReceiver(pc, setState, (files) => {
-        setReceivedFiles(files);
-      });
-
-      const answer = await createAnswer(pc, offer);
-      const compressed = await compressString(JSON.stringify(answer));
-      setOfferData(data);
-      setAnswerData(compressed);
-      setState({ kind: "signaling", message: "Show this QR code to the sender to complete the connection." });
-    } catch (err) {
-      setState({ kind: "error", message: "Invalid offer QR code. Please try again." });
+  function connect() {
+    const code = normalizeCode(codeInput);
+    if (code.length < 4) {
+      setState({ kind: "error", message: "Please enter a valid code." });
+      return;
     }
+
+    setConnected(true);
+    setState({ kind: "connecting" });
+
+    const peer = new Peer();
+    peerRef.current = peer;
+
+    peer.on("open", () => {
+      const conn = peer.connect(PEER_PREFIX + code, { reliable: true });
+
+      conn.on("open", () => {
+        setupReceiver(conn, setState, (files) => setReceivedFiles(files));
+      });
+
+      conn.on("error", () => {
+        setState({
+          kind: "error",
+          message: "Could not connect. Check the code and try again.",
+        });
+      });
+    });
+
+    peer.on("error", (err) => {
+      const type = (err as { type?: string }).type;
+      if (type === "peer-unavailable") {
+        setState({
+          kind: "error",
+          message: "No sender is waiting with that code.",
+        });
+      } else {
+        setState({ kind: "error", message: err.message || "Connection service error" });
+      }
+    });
+  }
+
+  function reset() {
+    peerRef.current?.destroy();
+    peerRef.current = null;
+    setConnected(false);
+    setCodeInput("");
+    setState({ kind: "idle" });
+    setReceivedFiles([]);
   }
 
   return (
@@ -72,21 +95,32 @@ export function ReceiveFlow({ onBack }: ReceiveFlowProps) {
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
-        {!answerData && (
+        {!connected && (
           <>
-            <p className="text-center text-sm text-muted-foreground">
-              Scan the sender&apos;s QR code to begin.
-            </p>
-            <QRScanner onScan={handleOfferScan} label="Point camera at sender&apos;s offer QR" />
+            <div className="space-y-2">
+              <Label htmlFor="code-input">Enter share code</Label>
+              <Input
+                id="code-input"
+                value={codeInput}
+                onChange={(e) => setCodeInput(e.target.value)}
+                placeholder="e.g. abc234"
+                autoComplete="off"
+                autoCapitalize="none"
+                spellCheck={false}
+                maxLength={10}
+                className="text-center text-2xl font-mono tracking-widest uppercase"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") connect();
+                }}
+              />
+            </div>
+            <Button onClick={connect} disabled={!codeInput.trim()} className="w-full">
+              Connect
+            </Button>
           </>
         )}
 
-        {answerData && (
-          <div className="space-y-6">
-            <QRCodeDisplay data={answerData} label="Show this code to the sender" />
-            <TransferProgress state={state} />
-          </div>
-        )}
+        {connected && <TransferProgress state={state} />}
 
         {receivedFiles.length > 0 && (
           <div className="space-y-3 rounded-lg border border-border bg-card p-4">
@@ -95,7 +129,12 @@ export function ReceiveFlow({ onBack }: ReceiveFlowProps) {
               {receivedFiles.map((file) => (
                 <li key={file.name} className="flex items-center justify-between gap-2">
                   <span className="truncate text-sm">{file.name}</span>
-                  <Button size="sm" variant="outline" onClick={() => downloadFile(file)} className="gap-1 shrink-0">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => downloadFile(file)}
+                    className="gap-1 shrink-0"
+                  >
                     <Download className="h-4 w-4" />
                     Save
                   </Button>
@@ -103,6 +142,12 @@ export function ReceiveFlow({ onBack }: ReceiveFlowProps) {
               ))}
             </ul>
           </div>
+        )}
+
+        {state.kind === "error" && connected && (
+          <Button variant="outline" onClick={reset} className="w-full">
+            Try again
+          </Button>
         )}
       </CardContent>
     </Card>

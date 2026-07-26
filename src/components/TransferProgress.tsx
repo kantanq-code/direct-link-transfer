@@ -1,5 +1,5 @@
 import { Progress } from "@/components/ui/progress";
-import type { TransferState } from "@/lib/webrtc";
+import type { TransferState } from "@/lib/peer";
 
 interface TransferProgressProps {
   state: TransferState;
@@ -28,8 +28,8 @@ export function TransferProgress({ state }: TransferProgressProps) {
   let message = "";
   let progress = 0;
 
-  if (state.kind === "signaling") {
-    message = state.message;
+  if (state.kind === "waiting") {
+    message = `Waiting for receiver (code: ${state.code})`;
   } else if (state.kind === "connecting") {
     message = "Connecting peer-to-peer...";
   } else if (state.kind === "transferring") {
