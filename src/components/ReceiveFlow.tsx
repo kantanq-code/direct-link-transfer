@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import type Peer from "peerjs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, Download, Radio } from "lucide-react";
 import {
@@ -17,10 +16,10 @@ import { TransferProgress } from "./TransferProgress";
 
 const CODE_LENGTH = 6;
 const KEYPAD_ROWS = [
-  CODE_ALPHABET.slice(0, 8),
-  CODE_ALPHABET.slice(8, 16),
-  CODE_ALPHABET.slice(16, 24),
-  CODE_ALPHABET.slice(24),
+  Array.from(CODE_ALPHABET.slice(0, 8)),
+  Array.from(CODE_ALPHABET.slice(8, 16)),
+  Array.from(CODE_ALPHABET.slice(16, 24)),
+  Array.from(CODE_ALPHABET.slice(24)),
 ];
 
 interface ReceiveFlowProps {
