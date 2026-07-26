@@ -120,8 +120,41 @@ export function setupReceiver(
         total: totalSize,
         fileName: rf.meta.name,
       });
+export function setupReceiver(
+  conn: DataConnection,
+  onStateChange: OnStateChange,
+  onFilesReceived: (files: ReceivedFile[]) => void
+): void {
+  let received: { meta: FileMeta; chunks: Map<number, Uint8Array> }[] = [];
+  let totalSize = 0;
+  let totalReceived = 0;
+
+  conn.on("data", (raw) => {
+    const msg = raw as IncomingMsg;
+    if (msg.kind === "meta") {
+      received = msg.files.map((m) => ({ meta: m, chunks: new Map() }));
+      totalSize = msg.totalSize;
+      totalReceived = 0;
+      onStateChange({
+        kind: "transferring",
+        sent: 0,
+        total: totalSize,
+        fileName: msg.files[0]?.name ?? "",
+      });
+    } else if (msg.kind === "chunk") {
+      const rf = received[msg.fileIndex];
+      if (!rf) return;
+      const bytes = new Uint8Array(msg.data);
+      rf.chunks.set(msg.offset, bytes);
+      totalReceived += bytes.length;
+      onStateChange({
+        kind: "transferring",
+        sent: totalReceived,
+        total: totalSize,
+        fileName: rf.meta.name,
+      });
     } else if (msg.kind === "done") {
-      const files = received.map((rf) => {
+      const files: ReceivedFile[] = received.map((rf) => {
         const sorted = Array.from(rf.chunks.entries()).sort((a, b) => a[0] - b[0]);
         const total = sorted.reduce((s, [, c]) => s + c.length, 0);
         const combined = new Uint8Array(total);
@@ -130,7 +163,10 @@ export function setupReceiver(
           combined.set(c, pos);
           pos += c.length;
         }
-        return new File([combined], rf.meta.name, { type: rf.meta.type });
+        return {
+          file: new File([combined], rf.meta.name, { type: rf.meta.type }),
+          path: rf.meta.path || rf.meta.name,
+        };
       });
       onFilesReceived(files);
       onStateChange({ kind: "completed" });
@@ -138,13 +174,43 @@ export function setupReceiver(
   });
 }
 
-export function downloadFile(file: File): void {
+export function downloadFile(file: File, filename?: string): void {
   const url = URL.createObjectURL(file);
   const a = document.createElement("a");
   a.href = url;
-  a.download = file.name;
+  a.download = filename ?? file.name;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+type DirHandle = {
+  getDirectoryHandle: (name: string, opts?: { create?: boolean }) => Promise<DirHandle>;
+  getFileHandle: (name: string, opts?: { create?: boolean }) => Promise<{
+    createWritable: () => Promise<{ write: (data: Blob) => Promise<void>; close: () => Promise<void> }>;
+  }>;
+};
+
+export function supportsDirectorySave(): boolean {
+  return typeof (window as unknown as { showDirectoryPicker?: unknown }).showDirectoryPicker === "function";
+}
+
+export async function saveAllToDirectory(files: ReceivedFile[]): Promise<void> {
+  const picker = (window as unknown as {
+    showDirectoryPicker: () => Promise<DirHandle>;
+  }).showDirectoryPicker;
+  const root = await picker();
+  for (const { file, path } of files) {
+    const parts = path.split("/").filter(Boolean);
+    const fileName = parts.pop() ?? file.name;
+    let dir: DirHandle = root;
+    for (const part of parts) {
+      dir = await dir.getDirectoryHandle(part, { create: true });
+    }
+    const handle = await dir.getFileHandle(fileName, { create: true });
+    const writable = await handle.createWritable();
+    await writable.write(file);
+    await writable.close();
+  }
 }
