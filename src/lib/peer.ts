@@ -1,6 +1,13 @@
 import type { DataConnection } from "peerjs";
 
-export type FileMeta = { name: string; size: number; type: string };
+export type FileMeta = { name: string; size: number; type: string; path?: string };
+export type ReceivedFile = { file: File; path: string };
+
+type FileWithPath = File & { webkitRelativePath?: string };
+export function getFilePath(file: File): string {
+  const rel = (file as FileWithPath).webkitRelativePath;
+  return rel && rel.length > 0 ? rel : file.name;
+}
 
 export type TransferState =
   | { kind: "idle" }
