@@ -3,13 +3,16 @@ import type Peer from "peerjs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Download, Radio } from "lucide-react";
+import { ArrowLeft, Download, FolderDown, Radio } from "lucide-react";
 import {
   CODE_ALPHABET,
   downloadFile,
   normalizeCode,
   PEER_PREFIX,
+  saveAllToDirectory,
   setupReceiver,
+  supportsDirectorySave,
+  type ReceivedFile,
   type TransferState,
 } from "@/lib/peer";
 import { TransferProgress } from "./TransferProgress";
@@ -30,7 +33,10 @@ export function ReceiveFlow({ onBack }: ReceiveFlowProps) {
   const [codeInput, setCodeInput] = useState("");
   const [connected, setConnected] = useState(false);
   const [state, setState] = useState<TransferState>({ kind: "idle" });
-  const [receivedFiles, setReceivedFiles] = useState<File[]>([]);
+  const [receivedFiles, setReceivedFiles] = useState<ReceivedFile[]>([]);
+  const [savingAll, setSavingAll] = useState(false);
+  const canSaveFolder = supportsDirectorySave();
+  const hasFolder = receivedFiles.some((rf) => rf.path.includes("/"));
   const peerRef = useRef<Peer | null>(null);
 
   const normalizedCode = normalizeCode(codeInput).slice(0, CODE_LENGTH);
@@ -201,15 +207,43 @@ export function ReceiveFlow({ onBack }: ReceiveFlowProps) {
 
         {receivedFiles.length > 0 && (
           <div className="space-y-3 rounded-lg border border-border bg-card p-4">
-            <p className="text-sm font-medium">Received files</p>
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium">Received {hasFolder ? "items" : "files"}</p>
+              {canSaveFolder && hasFolder && (
+                <Button
+                  size="sm"
+                  onClick={async () => {
+                    setSavingAll(true);
+                    try {
+                      await saveAllToDirectory(receivedFiles);
+                    } catch {
+                      // user cancelled or error
+                    } finally {
+                      setSavingAll(false);
+                    }
+                  }}
+                  disabled={savingAll}
+                  className="gap-1"
+                >
+                  <FolderDown className="h-4 w-4" />
+                  {savingAll ? "Saving…" : "Save folder"}
+                </Button>
+              )}
+            </div>
+            {hasFolder && !canSaveFolder && (
+              <p className="text-xs text-muted-foreground">
+                Your browser can't recreate folders on save. Files below keep their names; open a
+                Chromium-based browser (Chrome/Edge) to save with the original folder structure.
+              </p>
+            )}
             <ul className="space-y-2">
-              {receivedFiles.map((file) => (
-                <li key={file.name} className="flex items-center justify-between gap-2">
-                  <span className="truncate text-sm">{file.name}</span>
+              {receivedFiles.map((rf) => (
+                <li key={rf.path} className="flex items-center justify-between gap-2">
+                  <span className="truncate text-sm" title={rf.path}>{rf.path}</span>
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => downloadFile(file)}
+                    onClick={() => downloadFile(rf.file, rf.file.name)}
                     className="gap-1 shrink-0"
                   >
                     <Download className="h-4 w-4" />
