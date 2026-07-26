@@ -39,7 +39,7 @@ export function ReceiveFlow({ onBack }: ReceiveFlowProps) {
       pc.addEventListener("connectionstatechange", () => {
         if (pc.connectionState === "connected") {
           setState({ kind: "connecting" });
-        } else if (pc.connectionState === "failed" || pc.connectionState === "disconnected") {
+        } else if (pc.connectionState === "failed") {
           setState({ kind: "error", message: "Peer-to-peer connection failed. Try again on the same network." });
         }
       });
