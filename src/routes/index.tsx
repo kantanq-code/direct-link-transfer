@@ -71,14 +71,14 @@ function Index() {
           </div>
           <div className="flex items-start gap-3">
             <Shield className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-            <span>Files never touch a server or database.</span>
+            <span>Files are not stored online; blocked networks may use an encrypted relay.</span>
           </div>
           <div className="flex items-start gap-3">
             <Smartphone className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
             <span>Works across PC, Mac, Android, and iPhone/iPad.</span>
           </div>
           <p className="text-xs">
-            For Internet transfers, free public STUN servers help devices find each other. On strict networks a relay may be needed.
+            For Internet transfers, discovery servers help devices find each other. Direct transfer is tried first; strict networks may fall back to a temporary relay.
           </p>
         </CardContent>
       </Card>
