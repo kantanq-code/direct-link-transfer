@@ -31,15 +31,6 @@ export function ReceiveFlow({ onBack }: ReceiveFlowProps) {
     };
   }, []);
 
-  function connect() {
-    const code = normalizeCode(codeInput);
-    if (code.length < 4) {
-      setState({ kind: "error", message: "Please enter a valid code." });
-      return;
-    }
-
-    setConnected(true);
-    setState({ kind: "connecting" });
 
   async function connect() {
     const code = normalizeCode(codeInput);
